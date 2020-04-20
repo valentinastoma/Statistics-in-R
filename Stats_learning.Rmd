@@ -4,6 +4,7 @@ author: "Valentina Stoma"
 date: "4/17/2020"
 output:
   html_document: default
+  md_document: default 
 ---
 
 ```{r setup, include=FALSE}
