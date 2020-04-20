@@ -1,0 +1,577 @@
+---
+title: "Statistical Learning"
+author: "Valentina Stoma"
+date: "4/17/2020"
+output:
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+In this notebook, I am performing Statistical learning based on the book of 
+Introduction to Statistical learning. 
+
+
+## Linear regression - least squares 
+for prediction and estimates for quantitave variables 
+
+```{r}
+library(MASS)
+library(ISLR)
+data(Boston)
+names(Boston)
+```
+Simple linear regression model to predict medv by lstat 
+
+```{r}
+lm.fit = lm(medv~lstat, data = Boston)
+summary(lm.fit)
+```
+
+confidence interval of the fit can be obtained through:
+```{r}
+# obtaining the coefficient for the model - get the intercept and 
+# the coefficient for the independent varibale 
+coef(lm.fit)
+# confidence intervals for the model 
+confint(lm.fit)
+```
+
+We can produce confidence intervals and prediction intervals for the model 
+```{r}
+predict(lm.fit, data.frame(lstat=c(5,10,15)), interval = 'confidence')
+```
+```{r}
+predict(lm.fit, data.frame(lstat = c(5,10,15)), interval = 'prediction')
+```
+Plotting the relationship, as well as the regresison line:
+```{r}
+plot(Boston$lstat, Boston$medv) + abline(lm.fit) + abline(lm.fit,lwd=3,col="red")
+```
+
+The plot provides some evidence for non linearity in the relationship between the lstat and medv. To cofirm or deny that 
+we can use linear regression for predicting this relationship, we want to perfomr some diagnostics. 
+
+```{r}
+par(mfrow = c(2,2))
+plot(lm.fit)
+```
+
+We can also compute the residuals from the fit. For diagnostic purpose,
+plot the residuals against the fitted values. 
+```{r}
+plot(predict(lm.fit), residuals(lm.fit))
+#rstudent studentizes the residuals. Returns a quotient from the division of the residuals over its standard deviation - important for deteciton of the outliers.
+plot(predict(lm.fit), rstudent(lm.fit))
+```
+
+Leverage statistics computed based on the predictors
+```{r}
+plot(hatvalues(lm.fit))
+which.max(hatvalues(lm.fit))
+```
+
+The value of 375 is the index of the largest element of a vector - this observation has the largest leverage statistics. 
+
+## Multiple linear Regression 
+
+Use MLR to predict medv value of Boston hosing dataset, taking into account multiple variables (not blind to each other)
+
+```{r}
+attach(Boston)
+#individual varibales 
+lm.fit =lm(medv~lstat+age)
+summary(lm.fit)
+```
+```{r}
+#using all the variables 
+lm.fit = lm(medv~., data = Boston)
+summary(lm.fit)
+```
+
+```{r}
+# return the R^2 of the fit 
+summary(lm.fit)$r.sq
+# return the RSE of the fit 
+summary(lm.fit)$sigma
+library(car)
+#calculate the variance inflation factor 
+vif(lm.fit)
+```
+RSE and R^2 are used to estimate the fit of the model - the fraction of variance explained. RSE is the error variation - __a measure of the lack of fit of the model to the data__.
+
+
+```{r}
+#diagnostic plots for the linearity and residuals check 
+plot(lm.fit)
+```
+
+Updaing the fit to exlude the vairbales with, for examples, too high p values: 
+```{r}
+lm.fit1=update(lm.fit, ~.-age)
+summary(lm.fit1)
+```
+
+## Interaction terms
+
+Including interaction terms in the model can be done the following manner.  
+```{r}
+summary(lm(medv~lstat*age, data = Boston))
+```
+
+Performign non linear transformations withint the model 
+```{r}
+lm.fit2 = lm(medv~lstat + I(lstat^2))
+summary(lm.fit2)
+```
+Looks like this model can have an enhanced fit, compared to the preivos where no non linear transformation was performed. In order to compare the two models, we can perform ANOVA test and test the hypothesis of the two modesl fitting the data equally will or the model with the quadaratic element being superior. 
+```{r}
+lm.fit = lm(medv~lstat)
+anova(lm.fit, lm.fit2)
+```
+
+Based on the 135 F statistics, and very low p value (2.2e-16), we can conclude that the model with the transformed element is superior to that which just assumes linear realtionship between the medv and lstat. This is expected based on the somewhat non linear indications in the diagnostic plots of residuals and normal QQ plots for lm.fit. 
+Here we look at the diagnostic plots for the model with the transformed element:
+```{r}
+par(mfrow = c(2,2))
+plot(lm.fit2)
+```
+
+Residuals vs fitted plots demonstrates an almost horizontal line, which is indicative of assumptions of linear regession model being met. 
+
+Additionally, we can include polynomial elements in the model:
+```{r}
+lm.fit5 = lm(medv~poly(lstat,5))
+summary(lm.fit5)
+```
+Log transformation is an common transformation 
+
+```{r}
+summary(lm(medv~log(rm), data = Boston))
+```
+
+Qualitative predictors:
+```{r}
+data("Carseats")
+names(Carseats)
+```
+
+```{r}
+lm.fit = lm(Sales~.+Income:Advertising+ Price:Age, data = Carseats)
+summary(lm.fit)
+```
+
+```{r}
+contrasts(Carseats$ShelveLoc)
+```
+
+```{r}
+data(Auto)
+lm.fit1 = lm(mpg~log(horsepower), data = Auto)
+summary(lm.fit1)
+```
+```{r}
+plot(lm.fit1)
+```
+
+
+```{r}
+predict(lm.fit1, data.frame(horsepower=c(95,98,100)), interval = 'confidence')
+```
+
+
+```{r}
+attach(Auto)
+plot(log(horsepower), mpg)
+abline(lm.fit1,lwd=3,col="red")
+```
+
+Plotting the log model on the backtransformed plot:
+```{r}
+# back transformed
+attach(Auto)
+
+plot(horsepower, mpg)
+predicted <- predict(lm.fit1, type="r")    
+lines(horsepower, exp(predicted), col = "blue")
+```
+
+
+Investigating the t statistc for the null hypothesis 
+```{r}
+set.seed(1)
+x = rnorm(100)
+y = 2*x+rnorm(100)
+```
+
+
+```{r}
+# performing simple linear regression with no intercept 
+# forcing to go through the origin 
+summary(lm(y~x+0))
+
+```
+
+```{r}
+(summary(lm(y~x+0)))$r.sq
+(summary(lm(y~x+0)))$sigma
+```
+```{r}
+summary(lm(x~y+0))
+```
+
+```{r}
+data(Boston)
+head(Boston)
+# prediction of the per capita crime rate 
+lm.crime = lm(crim~., data = Boston)
+plot(lm.crime)
+summary(lm.crime)
+```
+
+```{r}
+summary(lm.crime)$coefficients[,4][summary(lm.crime)$coefficients[, 4]  < 0.05]
+  
+attach(Boston)
+plot(zn, crim)
+```
+
+
+## Classification 
+
+For the response variables that are qualitative, we want to use classification for the categorical values. 
+
+- Logistic Regression 
+- Linear discriminant analysis = will get the same results as for the binary encoding case for linear regression 
+- K-nearest neighbors 
+
+More: 
+
+- Generalized additive models 
+- Trees and Random Forest 
+- Boosting 
+- Support Vector Machines 
+
+
+***Logistic regression***
+
+General form: probability of Y given X: __we model the conditional distribution fo the response Y__
+$$Pr(Y=k|X=x)$$
+
+The probability that Y belongs to a particular category. Modelling a response variable with the logistic function to avoid the possiblity of prediction p(X)<0 and p(X)>1. 
+
+This can be achieved with maximum likelihood. 
+Obtaining the odds between 0 and infinity. 
+
+$$\frac{p(X)}{[1-p(X)]} = e^{\beta_0+\beta_1*X}$$
+
+
+Take the log of both sides and get the logit from the odds: 
+
+$$\log{\left(\frac{p(X)}{[1-p(X)]}\right)} = \beta_0+\beta_1X$$
+Estimating the beta coefficients from the training data through maxmizing the likelihoood function: 
+
+$$l(\beta_0, \beta_1) = \prod_{i:y_i=1}  p(x_i) \prod_{i^{'}:y_{i^{'}}=0}(1-p(x_i))$$
+Estimating the probability of something given an independent variable. 
+Positive coefficient $$\hat{(\beta_1)}$$ is inidicative of positive change in probability of dependent variable depending on the IV. 
+
+Null hypothesis: 
+the probability of dependent variable does not depend on the independent variable.
+
+__Making predictions__ through computing the probability of the dependent variable once the coefficients are estimated. 
+
+$$\hat{p}(X) =\frac{e^{\hat{\beta_0}+\hat{\beta_1}X}}{1+e^{\hat{\beta_0}+\hat{\beta_1}X}}$$
+
+***Multiple Logistic Regression*** 
+
+We can rpedict binary response using multiple predictors. 
+Similarly, maximum likelihood to estimate the coefficients for the subsequent use in predictions. 
+
+Using Logistic regression for more than 2 response classes:
+Multiple classes of the response variable - not common. instead, the next approach is used. 
+
+***Linear Disciminant Analysis***
+
+This method is more stable than the logistic regression when:
+
+- The classes are well-separated - the coefficients in LR are not very stable 
+- The n is small and the distrivubtion of the predictors X is approx normal in each of the classes 
+- There are more than two response classes 
+
+
+Looking at the unordered reponse variabel classes. 
+
+$$Pr(Y=k|X=x)= \frac{\pi_kf_k(x)}{\sum^{K}_{l=1}\pi_lf_l(x)}$$
+Instead of directly computing probability for class k with value X, "we san simply plug in estimates for pi k ( the prior) and the density function for k and X into the Y" [@Stats]
+
+Estimates the Bayes decision boundary.
+
+Linear disciminatory analysis method approximates the Bayes classifier by pluggin estimates for the prior, the mean and the variance. 
+
+The LDA classifier plugs the estimates obtained from here :
+$$\hat{\mu_k} = \frac{1}{n_k}\sum_{i:y_i=K}x_i$$
+
+$$\hat{\sigma^2} = \frac{1}{n-K}\sum_{k=1}^K\sum_{i:y_y=k}(x_i - \hat{\mu_k})^2$$
+
+$$\hat{\pi_k} = n_k/n$$
+into : 
+$$\delta_k(x) = x * \frac{\mu_k}{\sigma^2} - \frac{\mu_k^2}{2\sigma^2} + log(\pi_k)$$
+
+__LDA can be extended to the cases of multiple predictors__
+
+Assumption:
+
+- X is drawn from multivariate normal  (=multivariate Gaussian)
+  - Distribution assumes that each predictor follows a one dimensional normal distribution, sith some correlation between each pair of predictors 
+- Class specific mean vector 
+- Covariance matrix that is common to all K classes 
+  
+
+Important estimates fo the class specific performance: 
+
+- __Sensitivity__ - percentage of the true class representatives that are identified 
+- __Specificity__ - percentage of non class representatives that were identiified as class representatives. 
+
+
+Consider changing the threshold cut off for Bayes classifier into one or the other group - that will change the error rate depending on what are we interested in estimating. 
+
+For comparing different classifiers, one can use: 
+
+- Confusion matrices 
+- ROC curves for tracing out the two types of error as the threshold value for the posterior probability of default is being changed. 
+
+***Quadratic Disciminant analysis***
+
+Assumptions:
+
+- Observations are drawn from a Gaussian distribution 
+- Each class has its own covariance matrix 
+
+The quantity x is therefore will appear as a quadratic function.
+
+QDA vs LDA - bias-variance trade off. 
+LDA is less flexible than QDA and has lower variance. If the assumption of the same variance matrix is the way off, the bias will be large. If there are few training observations - LDA is a good approach. [@Stats]
+
+
+***Comparing the classification methods***
+
+Logistic Regression vs LDA:
+Often similar, differ in the way that parameterst are estiamted (through maximum likelihood vs the estimated mean and variance from a normal distribution). The difference is in the fitting procedures. LDA >LR if the observations are from a Gaussian distribution. 
+
+K nearest neighbors:
+completely non parametric as in order to make predictions, the K closest observations that ar eclesst to x are identified, and x is assigned to the class to which the plurality of these obseravtions belong [@Stats]. NO assumptions about the shape of the decision boundary. When the decision boundary is hihgly non linear, KNN> LDA and LR. 
+Negative - we dont know which predictions are important, no coefficient estimate. 
+
+QDA: 
+Is a compromize beterrn the non pararmetric KNN and linear LDA and logistic regession approaches. QDA is good in the case of limited number of training observations as it does not make assumptions baout the decision boundary. 
+    
+    
+### Test Case
+
+```{r}
+library(ISLR)
+names(Smarket)
+dim(Smarket)
+summary(Smarket)
+pairs(Smarket)
+cor(Smarket[,-9])
+```
+
+```{r}
+plot(Smarket$Volume)
+```
+
+Using Logistic regression, we want to predict the Direction  based on the Volume and Lag variables 
+
+```{r}
+attach(Smarket)
+glm.fits = glm(Direction~Lag1 +Lag2+ Lag3+ Lag4+ Lag5+ Volume, family = binomial)
+summary(glm.fits)
+```
+
+```{r}
+coef(glm.fits)
+summary(glm.fits)$coef
+```
+The produced p values are all quite large so it is not enough to say that any lag values are significant predictions of the direction. Overall, what the estimate coefficient are saying, for examples, Lag1 - since the estimate is negative, if the market had a positive return the day before, the next day is less likely to have a positive return as well. 
+
+We can perform predictions. If no values are specified, the training values are used to make probabaility predictions. Type = 'response' specifies that the probabilities are reported in this form: 
+$$P(Y=1|X)$$
+The first ten probabilities of the market going up: 
+```{r}
+glm.probs = predict(glm.fits, type = 'response')
+glm.probs[1:10]
+```
+```{r}
+#Double checking that 1 is indicative of the markets going up. 
+contrasts(Direction)
+```
+To predict the market goign up or down on a *Particular* day, we need to specify the following: 
+```{r}
+# just a vector with the number of daywe know is there 
+glm.pred = rep("Down", 1250)
+# assign up to all that are counted as up days in the predictions that we made. above 0.5 means that the return on the day was positive. 
+glm.pred[glm.probs>.5]="Up"
+head(glm.pred)
+#make a confusion matrix to understand how the prediction is compared Direction values are given. 
+table(glm.pred, Direction)
+
+```
+
+```{r}
+#Sensitivity: the true that are identified 
+507/(141+507)
+#0.7824074
+```
+
+This is not the most accurate way to estimate how well this model is performing since we are working on the same training set. We want to split up the date into the training and testing datasets. 
+
+```{r}
+#observations from 2001 to 2004 
+train = (Year< 2005)
+# this table has only 2005 data = test data 
+Smarket.2005 =Smarket[!train, ]
+dim(Smarket.2005)
+#the results that we want to predict 
+Direction.2005 = Direction[!train]
+```
+
+```{r}
+#Making a logistic expression model, similar to before but only with the train data:
+glm.fits = glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data = Smarket, family = 'binomial', subset = train)
+
+glm.probs = predict(glm.fits, Smarket.2005, type = 'response')
+```
+
+```{r}
+glm.pred =rep('Down', 252)
+glm.pred[glm.probs>0.5]="Up"
+table(glm.pred, Direction.2005)
+
+```
+
+```{r}
+mean(glm.pred == Direction.2005)
+#0.4801587
+mean(glm.pred != Direction.2005)
+#0.5198413
+```
+
+We cannot use previous days return to predict the future value, at least not with  this model.
+
+***Moving onto the Linear Discriminant Analysis***
+
+```{r}
+lda.fit = lda(Direction~Lag1+Lag2, data = Smarket, subset = train)
+lda.fit
+```
+The fit descirbes the  prriors for the two parameters we want to use to estimate the direction variable. What this means, is that 49.2% of the training observations correspond to the days during which tohe market went down. 
+Group means are used by LDA as estimates of mean of class. This table reads that there is a tendenccy for the previous 2 days' returns to be negative on days when the market increases (Up). The coefficient presented below the mean is the linear combination of the variable (Lag1 and Lag2) to form LDA. 
+
+```{r}
+# These are the plots of linear discriminants 
+plot(lda.fit)
+```
+
+```{r}
+lda.pred = predict(lda.fit, Smarket.2005)
+names(lda.pred)
+```
+
+"Class" contains the LDA's predictions about the movement of the market. 
+"Posterior" contains the matrix whose kth column contains the posterior probability that the corresponsing observation belongs to the kth class. 
+"X" contains the linear disciminant 
+
+```{r}
+summary(Direction.2005)
+```
+
+
+```{r}
+lda.class = lda.pred$class
+table(lda.class, Direction.2005)
+mean(lda.class == Direction.2005)
+```
+
+Here we apply 50% threshold to the posterior probabilities to recreate the peredictions that are contained within the class of the model predictions: 
+```{r}
+sum(lda.pred$posterior[,1]>=0.5)
+#70
+sum(lda.pred$posterior[,1]<0.5)
+#182
+```
+We can use any other cut off for the posterior probability (more than 50 if we want to be more confident that the market will decresase that day). 
+
+
+```{r}
+lda.pred$posterior[1:20,1]
+```
+
+***Quadratic Discriminant Analysis*** 
+
+```{r}
+qda.fit = qda(Direction~Lag1 +Lag2, data = Smarket, subset = train)
+qda.fit
+```
+
+```{r}
+qda.pred = predict(qda.fit, Smarket.2005)
+table(qda.pred$class, Direction.2005)
+```
+
+```{r}
+mean(qda.pred$class == Direction.2005)
+```
+
+***K-Nearest Neighbors*** 
+
+```{r}
+library(class)
+train.X = cbind(Lag1, Lag2)[train, ]
+test.X = cbind(Lag1, Lag2)[!train, ]
+train.Direction = Direction[train]
+```
+
+```{r}
+set.seed(1)
+knn.pred = knn(train.X, test.X, train.Direction, k = 1)
+table(knn.pred, Direction.2005)
+(83+34)/252
+```
+
+When k is equal 1, the results are not great. Want to use a higher k values, make the conditions more stringent. 
+```{r}
+knn.pred = knn(train.X, test.X, train.Direction, k = 2)
+table(knn.pred, Direction.2005)
+mean(knn.pred == Direction.2005)
+```
+However, in this case, increasing the value of k does not provide an improvement in the mdoel predictions. QDA remains the best method for this problem, where around 60% of predictions overall were correctly assigned. 
+
+***Caravan Dataset application*** 
+```{r}
+library(ISLR)
+dim(Caravan)
+#insurance purchase prediction 
+names(Caravan)
+summary(Caravan$Purchase)
+```
+
+In order to standardize the scale and therefore the effect of that scaleon KNN modeling, we can use scla function. 
+```{r}
+standardized.X = scale(Caravan[,-86])
+var(Caravan[,1])
+var(Caravan[,2])
+var(standardized.X[,1])
+var(standardized.X[,2])
+```
+Through standardization we achieve that every column in the dataset (except the categorical ones) have a standard deviation of 1 and mean of zero. 
+
+
+
+
+
+
+
